@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contextual Analysis App</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .container {
+            max-width: 600px;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            border-radius: 8px;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        select, input[type="file"], input[type="text"], button[type="submit"], textarea {
+            margin-bottom: 10px;
+            padding: 10px;
+            width: 100%;
+        }
+        button[type="submit"], button[type="reset"] {
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        button[type="submit"]:hover, button[type="reset"]:hover {
+            background-color: #0056b3;
+        }
+        #results {
+            margin-top: 20px;
+            display: none;
+        }
+        #results h2 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+        #results p {
+            margin-bottom: 5px;
+            color: #555;
+        }
+        #results ul {
+            margin-bottom: 10px;
+            list-style-type: none;
+        }
+        #results ul li {
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Contextual Analysis App</h1>
+        <form id="uploadForm" enctype="multipart/form-data" method="post" action="/analyze">
+            <select name="file_type" id="file_type" required>
+                <option value="" disabled selected>Select type of file</option>
+                <option value="image">Image</option>
+                <option value="url">URL</option>
+                <option value="text">Text</option>
+                <option value="pdf">PDF</option>
+            </select>
+            <input type="file" name="file" id="fileInput" accept="image/*,application/pdf" style="display:none;">
+            <input type="text" name="url" id="urlInput" placeholder="Enter URL" style="display:none;">
+            <textarea name="text" id="textInput" placeholder="Enter text" rows="4" style="display:none;"></textarea>
+            <button type="submit">Upload & Analyze</button>
+            <button type="reset" id="resetButton">Reset</button>
+        </form>
+        
+        <div id="results">
+            <h2>Analysis Results</h2>
+            <p><strong>Caption:</strong> <span id="caption"></span></p>
+            <p><strong>Sentiment:</strong> <span id="sentiment"></span></p>
+            <ul id="emotions">
+                <li><strong>Emotions:</strong></li>
+            </ul>
+            <p><strong>Age Appropriateness Rating:</strong> <span id="ageRating"></span></p>
+            <p><strong>IAB Category:</strong> <span id="iabCategory"></span></p>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <script>
+        $(document).ready(function() {
+            $('#file_type').change(function() {
+                $('#fileInput').hide();
+                $('#urlInput').hide();
+                $('#textInput').hide();
+                $('#fileInput').val('');
+                $('#urlInput').val('');
+                $('#textInput').val('');
+                if (this.value == 'image') {
+                    $('#fileInput').attr("accept", "image/*").show();
+                } else if (this.value == 'url') {
+                    $('#urlInput').show();
+                } else if (this.value == 'text') {
+                    $('#textInput').show();
+                } else if (this.value == 'pdf') {
+                    $('#fileInput').attr("accept", "application/pdf").show();
+                }
+            });
+
+            $('#uploadForm').submit(function(event) {
+                event.preventDefault();
+                var formData = new FormData($(this)[0]);
+                $.ajax({
+                    url: '/analyze',
+                    type: 'POST',
+                    data: formData,
+                    async: false,
+                    cache: false,
+                    contentType: false,
+                    processData: false,
+                    success: function(response) {
+                        if (response.error) {
+                            alert('Error: ' + response.error);
+                        } else {
+                            $('#caption').text(response.caption || 'N/A');
+                            $('#sentiment').text(response.sentiment.label);
+
+                            var emotionsHtml = '';
+                            if (response.emotions && response.emotions.length > 0) {
+                                response.emotions.forEach(function(emotion) {
+                                    emotionsHtml += '<li>' + emotion.label + ' (' + emotion.score.toFixed(2) + ')</li>';
+                                });
+                            }
+                            $('#emotions').html(emotionsHtml);
+                            
+                            $('#ageRating').text(response.age_rating);
+                            $('#iabCategory').text(response.iab_category || 'N/A');
+
+                            $('#results').fadeIn();
+                        }
+                    },
+                    error: function(jqXHR, textStatus, errorThrown) {
+                        alert('Error occurred while analyzing the content: ' + textStatus);
+                    }
+                });
+            });
+
+            $('#resetButton').click(function() {
+                $('#results').fadeOut();
+                $('#caption').text('');
+                $('#sentiment').text('');
+                $('#emotions').html('<li><strong>Emotions:</strong></li>');
+                $('#ageRating').text('');
+                $('#iabCategory').text('');
+            });
+        });
+    </script>
+</body>
+</html>
